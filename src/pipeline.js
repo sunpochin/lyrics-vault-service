@@ -220,7 +220,14 @@ export async function clearTrackCache({ artistName, trackName }) {
   const cacheDir = resolveCacheDir();
   const prefix = `${safeSlug(artistName)}--${safeSlug(trackName)}`;
   try {
-    const files = await fs.readdir(cacheDir);
+    let files;
+    try {
+      files = await fs.readdir(cacheDir);
+    } catch (err) {
+      // vault 目錄尚未建立 = 沒有東西可清，這是合法狀態而非錯誤
+      if (err.code === 'ENOENT') return { success: true, clearedCount: 0 };
+      throw err;
+    }
     const targets = files.filter(f => f.startsWith(prefix) && f.endsWith('.md'));
     for (const file of targets) {
       await fs.unlink(path.join(cacheDir, file));
