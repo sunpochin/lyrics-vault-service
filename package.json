@@ -1,0 +1,22 @@
+{
+  "name": "lyrics-vault-service",
+  "version": "1.0.0",
+  "description": "Lyrics translation companion service — cache-first LLM translation persisted as Obsidian-compatible Markdown",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "vitest run",
+    "demo:verify": "node scripts/demo-verify.js",
+    "auth:spotify": "node scripts/capture-spotify-sp-dc.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.6"
+  }
+}

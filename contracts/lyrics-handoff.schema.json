@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/sunpochin/lyrics-vault-service/contracts/lyrics-handoff.schema.json",
+  "title": "Lyrics Handoff Contract",
+  "description": "music-release-agent ↔ lyrics-vault-service 跨服務交接契約的單一事實來源。三方消費：本服務的請求驗證與回應自我檢查、music-release-agent 內建 mock（tests/fixtures/mock-lyrics-service.js）的自我檢查、以及 demo:verify:lyrics 對「真實或 mock」companion 回應的驗證。music-release-agent 持有一份副本並以 drift test 比對。",
+  "definitions": {
+    "lyricsRequest": {
+      "description": "POST /api/lyrics 請求體（核心服務 → companion）",
+      "type": "object",
+      "required": ["artistName", "trackName"],
+      "properties": {
+        "artistName": { "type": "string", "minLength": 1 },
+        "trackName": { "type": "string", "minLength": 1 },
+        "trackId": { "type": ["string", "null"] },
+        "translate": { "type": "boolean" },
+        "refresh": { "type": "boolean" }
+      }
+    },
+    "lyricsResponse": {
+      "description": "POST /api/lyrics 的 200 回應（companion → 核心服務）",
+      "type": "object",
+      "required": ["text", "cached", "provider"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "cached": { "type": "boolean" },
+        "provider": { "type": "string", "minLength": 1 },
+        "source": { "type": "string" },
+        "translated": { "type": "boolean" }
+      }
+    },
+    "clearRequest": {
+      "description": "DELETE /api/lyrics 請求體（清除單曲所有快取）",
+      "type": "object",
+      "required": ["artistName", "trackName"],
+      "properties": {
+        "artistName": { "type": "string", "minLength": 1 },
+        "trackName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "clearResponse": {
+      "description": "DELETE /api/lyrics 的 200 回應",
+      "type": "object",
+      "required": ["success", "clearedCount"],
+      "properties": {
+        "success": { "type": "boolean" },
+        "clearedCount": { "type": "number" }
+      }
+    },
+    "healthResponse": {
+      "description": "GET /healthz 的 200 回應",
+      "type": "object",
+      "required": ["status", "service"],
+      "properties": {
+        "status": { "enum": ["ok"] },
+        "service": { "enum": ["lyrics-vault-service"] }
+      }
+    },
+    "errorResponse": {
+      "description": "4xx/5xx 錯誤回應",
+      "type": "object",
+      "required": ["error"],
+      "properties": {
+        "error": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
