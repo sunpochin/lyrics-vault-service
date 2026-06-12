@@ -37,7 +37,7 @@ export async function fetchLyricsFromSource(artistName, trackName) {
     const response = await fetch(url, {
       headers: {
         // LRCLIB 官方禮節：標明應用程式身分
-        'User-Agent': 'music-release-agent/1.0 (https://github.com/sunpochin/music-release-agent)'
+        'User-Agent': 'lyrics-vault-service/1.0 (https://github.com/sunpochin/lyrics-vault-service)'
       },
       signal: AbortSignal.timeout(5000)
     });

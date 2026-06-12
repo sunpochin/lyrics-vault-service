@@ -26,7 +26,7 @@ describe('LRCLIB lyrics source', () => {
       'https://lyrics.example.test/api/get?artist_name=Las%20Migas&track_name=Amanecer',
       expect.objectContaining({
         headers: expect.objectContaining({
-          'User-Agent': expect.stringContaining('music-release-agent')
+          'User-Agent': expect.stringContaining('lyrics-vault-service')
         })
       })
     );
