@@ -97,12 +97,17 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
   if (!forceRefresh) {
     const hit = await readCachedLyrics(cacheDir, fileName);
     if (hit) {
+      // 嘗試讀取原始 LRC 快取，讓前端 KTV 模式可以使用
+      const rawFileName = cacheFileName({ artistName, trackName, provider: 'raw', promptVersion: 0 });
+      const rawHit = await readCachedLyrics(cacheDir, rawFileName);
+      
       return {
         text: hit.body,
         cached: true,
         provider: String(hit.frontmatter.provider || provider),
         source: hit.frontmatter.source ? String(hit.frontmatter.source) : undefined,
-        translated: true
+        translated: true,
+        lrc: rawHit ? rawHit.body : undefined
       };
     }
   }
@@ -184,7 +189,7 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
   // 4. write-through：冰一份進冷凍庫（寫入失敗不影響回應，只記 log）
   await persistCache(cacheDir, fileName, { artistName, trackName, provider: finalProvider, source: finalSource, text });
 
-  return { text, cached: false, provider: finalProvider, source: finalSource };
+  return { text, cached: false, provider: finalProvider, source: finalSource, lrc: rawLyrics, translated: true };
 }
 
 async function persistCache(cacheDir, fileName, { artistName, trackName, provider, source, text }) {
