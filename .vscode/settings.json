@@ -1,0 +1,6 @@
+{
+  "github.copilot.chat.instructions": [
+    "Please strictly follow the global coding principles, SOLID patterns, and React architecture guidelines defined in /Users/pac/codes/interview/workspace/HANDOFF.md and /Users/pac/codes/interview/workspace/docs/agent-handoff.md.",
+    "Any newly generated code must prefer SOLID and state colocation best practices (React components should keep states local unless strictly required to be lifted up)."
+  ]
+}

@@ -1,0 +1,3 @@
+# Claude Code Instructions
+- All modifications must strictly follow the global coding principles, SOLID patterns, and React architecture guidelines defined in [HANDOFF.md](file:///Users/pac/codes/interview/workspace/HANDOFF.md) and [agent-handoff.md](file:///Users/pac/codes/interview/workspace/docs/agent-handoff.md).
+- Keep component states colocated locally to avoid top-level tree re-renders.
