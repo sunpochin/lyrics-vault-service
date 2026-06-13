@@ -138,7 +138,8 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
       cached: false,
       provider: 'raw',
       source: sourced.source,
-      translated: false
+      translated: false,
+      lrc: sourced.lyrics
     };
   }
 
