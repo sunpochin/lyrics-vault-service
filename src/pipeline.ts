@@ -13,8 +13,9 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { translateWithGemini as translateLyrics, translateWithOllama } from './translate-provider.js';
-import { PROMPT_VERSION } from './lyrics-prompt.js';
+import { SYSTEM_INSTRUCTION, buildLyricsPrompt } from './lyrics-prompt.js';
 import { fetchLyricsFromSource } from './lyrics-source.js';
 import { fetchSpotifyLyrics } from './spotify-lyrics.js';
 import {
@@ -24,6 +25,12 @@ import {
   writeCachedLyrics,
   safeSlug
 } from './vault-writer.js';
+
+// 計算 Prompt Hash 作為自動快取失效機制
+const promptHash = crypto.createHash('md5')
+  .update(SYSTEM_INSTRUCTION + buildLyricsPrompt('','',''))
+  .digest('hex')
+  .substring(0, 6);
 
 // translateWithOllama 已移至 translate-provider.js（與 Gemini provider 並列、共用 prompt SSOT）
 export { translateWithOllama } from './translate-provider.js';
@@ -91,7 +98,7 @@ export async function getRawLyrics({ artistName, trackName, trackId, forceRefres
 export async function getLyricsWithCache({ artistName, trackName, trackId, forceRefresh = false, translate = true }) {
   const provider = (process.env.LYRICS_PROVIDER || 'gemini').toLowerCase();
   const cacheDir = resolveCacheDir();
-  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: PROMPT_VERSION });
+  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: promptHash });
 
   // 1. 冷凍庫優先：若有翻譯後的快取，直接回傳雙語對照
   if (!forceRefresh) {
@@ -206,7 +213,7 @@ async function persistCache(cacheDir, fileName, { artistName, trackName, provide
         source, // lrclib（真實歌詞）| llm-recall（模型記憶，幻覺風險誠實標示）
         verified,
         containsFullLyrics,
-        promptVersion: provider === 'raw' ? 0 : PROMPT_VERSION,
+        promptVersion: provider === 'raw' ? 0 : promptHash,
         language: 'zh-Hant',
         createdAt: new Date().toISOString(),
         tags: 'lyrics, ai-translation'
