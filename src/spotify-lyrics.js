@@ -47,12 +47,21 @@ export async function fetchSpotifyLyrics(trackId, spDc) {
     const lines = data.lyrics?.lines || [];
     if (lines.length === 0) return null;
 
-    // 將逐行歌詞組合為純文字
-    const plainLyrics = lines.map(line => line.words || '').join('\n').trim();
-    if (!plainLyrics) return null;
+    // 將逐行歌詞組合為 LRC 格式
+    const lrcLines = lines.map(line => {
+      if (!line.startTimeMs) return line.words || '';
+      const ms = parseInt(line.startTimeMs, 10);
+      if (isNaN(ms)) return line.words || '';
+      const totalSeconds = ms / 1000;
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = (totalSeconds % 60).toFixed(2).padStart(5, '0');
+      return `[${String(minutes).padStart(2, '0')}:${seconds}] ${line.words || ''}`;
+    });
+    const syncedLyrics = lrcLines.join('\n').trim();
+    if (!syncedLyrics) return null;
 
     return {
-      lyrics: plainLyrics,
+      lyrics: syncedLyrics,
       source: 'spotify'
     };
   } catch (err) {
