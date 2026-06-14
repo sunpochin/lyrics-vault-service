@@ -71,6 +71,44 @@ app.post('/api/lyrics', async (req, res) => {
   }
 });
 
+import { getLyricsWithCacheStream } from './src/pipeline.js';
+
+app.post('/api/lyrics/stream', async (req, res) => {
+  const check = validateAgainstDefinition(handoffSchema, 'lyricsRequest', req.body ?? {});
+  if (!check.valid) {
+    return res.status(400).json({ error: `請求違反 lyrics handoff 契約: ${check.errors.join('; ')}` });
+  }
+
+  const { artistName, trackName, trackId, translate, refresh } = req.body;
+
+  // Set SSE Headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*' // If needed
+  });
+
+  try {
+    const stream = getLyricsWithCacheStream({
+      artistName,
+      trackName,
+      trackId,
+      forceRefresh: Boolean(refresh)
+    });
+
+    for await (const data of stream) {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    }
+  } catch (err) {
+    console.error('[lyrics-vault-service] 串流翻譯失敗:', err.message);
+    res.write(`data: ${JSON.stringify({ type: 'error', error: err.message })}\n\n`);
+  } finally {
+    res.write(`event: end\ndata: {}\n\n`);
+    res.end();
+  }
+});
+
 app.delete('/api/lyrics', async (req, res) => {
   const check = validateAgainstDefinition(handoffSchema, 'clearRequest', req.body ?? {});
   if (!check.valid) {
