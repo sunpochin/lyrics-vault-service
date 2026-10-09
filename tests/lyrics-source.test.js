@@ -32,6 +32,7 @@ describe('LRCLIB lyrics source', () => {
     );
   });
 
+  // 保留 LRC 時間標記以供 KTV 動態對齊與時間軸同步
   it('falls back to synced lyrics when plain lyrics are missing', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
@@ -39,7 +40,7 @@ describe('LRCLIB lyrics source', () => {
     })));
 
     await expect(fetchLyricsFromSource('A', 'B')).resolves.toEqual({
-      lyrics: 'Hola\nMundo',
+      lyrics: '[00:01.00]Hola\n[00:02.00]Mundo',
       source: 'lrclib'
     });
   });
