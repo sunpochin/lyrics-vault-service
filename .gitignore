@@ -9,3 +9,5 @@ logs/
 *.log
 coverage/
 .DS_Store
+# 為什麼忽略工具狀態：本機索引與 session 記憶不應成為跨工具的規則來源。
+.serena/

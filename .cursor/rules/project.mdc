@@ -1,0 +1,6 @@
+---
+description: Read the repository constitution before editing
+alwaysApply: true
+---
+<!-- 檔案用途：Cursor 薄轉接；所在層：.cursor/rules；主要關聯：AGENTS.md。 -->
+Read [AGENTS.md](../../AGENTS.md), then load only the side document routed for the current task.

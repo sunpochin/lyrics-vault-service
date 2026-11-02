@@ -1,0 +1,10 @@
+#!/bin/bash
+# 檔案用途：所有工具共用的 Git 提交最後防線，不依賴特定 Agent hook 格式。
+# 所在層：.githooks；需本機設定 core.hooksPath，CI 另行檢查。
+# 主要關聯：scripts/check-staged.mjs、scripts/check-harness.mjs、docs/agents/local-tools.md。
+set -eu
+root="$(git rev-parse --show-toplevel)" || exit 1
+cd "$root" || exit 1
+# 為什麼先檢查 index：憑證不應為了執行其他檢查而先進入提交。
+node scripts/check-staged.mjs --commit
+exec node scripts/check-harness.mjs

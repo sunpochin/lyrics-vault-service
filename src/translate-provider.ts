@@ -28,6 +28,25 @@ export async function translateWithGemini(artistName, trackName, sourceLyrics) {
   return response.text;
 }
 
+/** Gemini provider (Streaming) */
+export async function* translateWithGeminiStream(artistName, trackName, sourceLyrics) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('Missing GEMINI_API_KEY in environment variables');
+  }
+
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+  const responseStream = await ai.models.generateContentStream({
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    contents: [{ text: buildLyricsPrompt(artistName, trackName, sourceLyrics) }],
+    config: { systemInstruction: SYSTEM_INSTRUCTION }
+  });
+
+  for await (const chunk of responseStream) {
+    yield chunk.text;
+  }
+}
+
 /** 對單一 Ollama 模型發出翻譯請求 */
 async function ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyrics) {
   const response = await fetch(`${baseUrl}/api/generate`, {
@@ -50,6 +69,71 @@ async function ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyric
     throw new Error('Ollama 回應中沒有翻譯內容');
   }
   return data.response;
+}
+
+/**
+ * 對單一 Ollama 模型發出翻譯串流請求
+ */
+async function* ollamaGenerateStream(baseUrl, model, artistName, trackName, sourceLyrics) {
+  const response = await fetch(`${baseUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      system: SYSTEM_INSTRUCTION,
+      prompt: buildLyricsPrompt(artistName, trackName, sourceLyrics),
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ollama 回應異常 (${response.status})：請確認本機 Ollama 已啟動且已 pull ${model}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Ollama 沒有回傳 stream body');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let done = false;
+
+  while (!done) {
+    const { value, done: doneReading } = await reader.read();
+    done = doneReading;
+    if (value) {
+      const chunkValue = decoder.decode(value, { stream: true });
+      const lines = chunkValue.split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const data = JSON.parse(line);
+          if (data.response) {
+            yield data.response;
+          }
+        } catch (e) {
+          // parse error
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Ollama provider (Streaming 版)
+ */
+export async function* translateWithOllamaStream(artistName, trackName, sourceLyrics) {
+  const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
+  const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+  const fallbackModel = process.env.OLLAMA_FALLBACK_MODEL;
+
+  try {
+    yield* ollamaGenerateStream(baseUrl, model, artistName, trackName, sourceLyrics);
+  } catch (err) {
+    if (!fallbackModel || fallbackModel === model) throw err;
+    console.warn(`[TranslateProvider] ⚠️ Ollama 主模型 ${model} 失敗 (${err.message})，改用 fallback 模型 ${fallbackModel}`);
+    yield* ollamaGenerateStream(baseUrl, fallbackModel, artistName, trackName, sourceLyrics);
+  }
 }
 
 /**

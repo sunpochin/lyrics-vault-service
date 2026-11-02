@@ -47,7 +47,7 @@ export async function fetchLyricsFromSource(artistName, trackName) {
     const data = await response.json();
     if (data.instrumental) return { instrumental: true };
 
-    const lyrics = data.plainLyrics?.trim() || stripLrcTimestamps(data.syncedLyrics);
+    const lyrics = data.syncedLyrics?.trim() || data.plainLyrics?.trim();
     if (!lyrics) return null;
 
     return { lyrics, source: 'lrclib' };

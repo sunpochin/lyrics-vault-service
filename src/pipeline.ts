@@ -13,8 +13,9 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { translateWithGemini as translateLyrics, translateWithOllama } from './translate-provider.js';
-import { PROMPT_VERSION } from './lyrics-prompt.js';
+import { SYSTEM_INSTRUCTION, buildLyricsPrompt } from './lyrics-prompt.js';
 import { fetchLyricsFromSource } from './lyrics-source.js';
 import { fetchSpotifyLyrics } from './spotify-lyrics.js';
 import {
@@ -24,6 +25,12 @@ import {
   writeCachedLyrics,
   safeSlug
 } from './vault-writer.js';
+
+// 計算 Prompt Hash 作為自動快取失效機制
+const promptHash = crypto.createHash('md5')
+  .update(SYSTEM_INSTRUCTION + buildLyricsPrompt('','',''))
+  .digest('hex')
+  .substring(0, 6);
 
 // translateWithOllama 已移至 translate-provider.js（與 Gemini provider 並列、共用 prompt SSOT）
 export { translateWithOllama } from './translate-provider.js';
@@ -91,18 +98,23 @@ export async function getRawLyrics({ artistName, trackName, trackId, forceRefres
 export async function getLyricsWithCache({ artistName, trackName, trackId, forceRefresh = false, translate = true }) {
   const provider = (process.env.LYRICS_PROVIDER || 'gemini').toLowerCase();
   const cacheDir = resolveCacheDir();
-  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: PROMPT_VERSION });
+  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: promptHash });
 
   // 1. 冷凍庫優先：若有翻譯後的快取，直接回傳雙語對照
   if (!forceRefresh) {
     const hit = await readCachedLyrics(cacheDir, fileName);
     if (hit) {
+      // 嘗試讀取原始 LRC 快取，讓前端 KTV 模式可以使用
+      const rawFileName = cacheFileName({ artistName, trackName, provider: 'raw', promptVersion: 0 });
+      const rawHit = await readCachedLyrics(cacheDir, rawFileName);
+      
       return {
         text: hit.body,
         cached: true,
         provider: String(hit.frontmatter.provider || provider),
         source: hit.frontmatter.source ? String(hit.frontmatter.source) : undefined,
-        translated: true
+        translated: true,
+        lrc: rawHit ? rawHit.body : undefined
       };
     }
   }
@@ -133,7 +145,8 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
       cached: false,
       provider: 'raw',
       source: sourced.source,
-      translated: false
+      translated: false,
+      lrc: sourced.lyrics
     };
   }
 
@@ -184,7 +197,100 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
   // 4. write-through：冰一份進冷凍庫（寫入失敗不影響回應，只記 log）
   await persistCache(cacheDir, fileName, { artistName, trackName, provider: finalProvider, source: finalSource, text });
 
-  return { text, cached: false, provider: finalProvider, source: finalSource };
+  return { text, cached: false, provider: finalProvider, source: finalSource, lrc: rawLyrics, translated: true };
+}
+
+/**
+ * 取得歌詞翻譯（Stream 版）。
+ * 若快取 hit 則直接 yield 全部並結束；若 miss 則啟動 LLM 並逐塊 yield。
+ * 結束時進行 write-through。
+ */
+export async function* getLyricsWithCacheStream({ artistName, trackName, trackId, forceRefresh = false }) {
+  const provider = (process.env.LYRICS_PROVIDER || 'gemini').toLowerCase();
+  const cacheDir = resolveCacheDir();
+  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: promptHash });
+
+  // 1. 冷凍庫優先
+  if (!forceRefresh) {
+    const hit = await readCachedLyrics(cacheDir, fileName);
+    if (hit) {
+      const rawFileName = cacheFileName({ artistName, trackName, provider: 'raw', promptVersion: 0 });
+      const rawHit = await readCachedLyrics(cacheDir, rawFileName);
+      yield { type: 'meta', provider: hit.frontmatter.provider || provider, source: hit.frontmatter.source, cached: true, lrc: rawHit ? rawHit.body : undefined };
+      yield { type: 'chunk', text: hit.body };
+      return;
+    }
+  }
+
+  // 2. 拿原文
+  const sourced = await getRawLyrics({ artistName, trackName, trackId, forceRefresh });
+  if (sourced?.instrumental) {
+    const text = '### 歌曲介紹\n這是一首演奏曲（Instrumental），沒有歌詞，請直接聆聽音樂本身的故事。';
+    await persistCache(cacheDir, fileName, { artistName, trackName, provider, source: 'lrclib-instrumental', text });
+    yield { type: 'meta', provider, source: 'lrclib-instrumental', cached: false };
+    yield { type: 'chunk', text };
+    return;
+  }
+
+  const rawLyrics = sourced?.lyrics;
+  const source = sourced ? (sourced.source || 'lrclib') : 'llm-recall';
+  yield { type: 'meta', provider, source, cached: false, lrc: rawLyrics };
+
+  // 3. 開始 Stream 翻譯
+  let fullText = '';
+  try {
+    if (provider === 'gemini') {
+      const { translateWithGeminiStream } = await import('./translate-provider.js');
+      const stream = translateWithGeminiStream(artistName, trackName, rawLyrics);
+      for await (const chunk of stream) {
+        fullText += chunk;
+        yield { type: 'chunk', text: chunk };
+      }
+    } else {
+      // Ollama
+      const { translateWithOllamaStream } = await import('./translate-provider.js');
+      const stream = translateWithOllamaStream(artistName, trackName, rawLyrics);
+      for await (const chunk of stream) {
+        fullText += chunk;
+        yield { type: 'chunk', text: chunk };
+      }
+    }
+  } catch (err) {
+    console.error(`[LyricsService] ⚠️ 串流翻譯失敗 (${err.message})`);
+    
+    // 如果是 Gemini 失敗，嘗試降級到 Ollama 串流
+    if (provider === 'gemini') {
+      try {
+        console.warn(`[LyricsService] ⚠️ Gemini 失敗，嘗試降級至 Ollama 串流...`);
+        const { translateWithOllamaStream } = await import('./translate-provider.js');
+        const stream = translateWithOllamaStream(artistName, trackName, rawLyrics);
+        for await (const chunk of stream) {
+          fullText += chunk;
+          yield { type: 'chunk', text: chunk };
+        }
+      } catch (ollamaErr) {
+        console.warn(`[LyricsService] ⚠️ Ollama 串流降級也失敗 (${ollamaErr.message})，退回顯示原始歌詞`);
+        if (rawLyrics) {
+          const fallbackText = `### 歌詞原文 (翻譯服務暫時不可用)\n\n${rawLyrics}`;
+          fullText = fallbackText;
+          yield { type: 'chunk', text: fallbackText };
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      if (rawLyrics) {
+        const fallbackText = `### 歌詞原文 (翻譯服務暫時不可用)\n\n${rawLyrics}`;
+        fullText = fallbackText;
+        yield { type: 'chunk', text: fallbackText };
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // 4. write-through
+  await persistCache(cacheDir, fileName, { artistName, trackName, provider, source, text: fullText });
 }
 
 async function persistCache(cacheDir, fileName, { artistName, trackName, provider, source, text }) {
@@ -200,7 +306,7 @@ async function persistCache(cacheDir, fileName, { artistName, trackName, provide
         source, // lrclib（真實歌詞）| llm-recall（模型記憶，幻覺風險誠實標示）
         verified,
         containsFullLyrics,
-        promptVersion: provider === 'raw' ? 0 : PROMPT_VERSION,
+        promptVersion: provider === 'raw' ? 0 : promptHash,
         language: 'zh-Hant',
         createdAt: new Date().toISOString(),
         tags: 'lyrics, ai-translation'

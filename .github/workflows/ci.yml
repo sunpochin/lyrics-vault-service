@@ -1,0 +1,32 @@
+# 檔案用途：所有分支共用最小離線 CI，將移植後的規則與現有測試變成可執行檢查。
+# 所在層：.github/workflows；不部署、不使用 provider 憑證。
+# 主要關聯：package.json、docs/agents/local-tools.md、docs/agents/harness-port.md。
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0，沿用來源鎖定版本
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run harness:check
+      - run: npm run harness:tracked
+      - run: npm test
+      # 為什麼暫不擋 CI：移植前的產品 TS 已有錯誤，保留診斷但不把本次規則變更冒充修復。
+      - name: Existing typecheck baseline (non-blocking until repaired)
+        continue-on-error: true
+        run: npm run typecheck

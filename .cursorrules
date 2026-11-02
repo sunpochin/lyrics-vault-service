@@ -1,0 +1,9 @@
+<!--
+檔案用途：相容舊工具的規則入口，移除失效機器路徑。
+所在層：.。
+主要關聯：AGENTS.md。
+-->
+
+# Rule Redirect
+
+Read [AGENTS.md](AGENTS.md) at this repository root; it is the canonical project rulebook.
