@@ -17,6 +17,7 @@
     "auth:spotify": "node scripts/capture-spotify-sp-dc.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@google/genai": "^2.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"

@@ -1,21 +1,18 @@
 /**
+ * 檔案用途：共用翻譯提示詞與內容版本。
+ * 所在層：src；主要關聯：pipeline.ts、translate-provider.ts、tests/vault-writer.test.js。
  * =====================================================================
  * 📝 Lyrics Prompt — 歌詞翻譯提示詞的單一事實來源
  * =====================================================================
  * [技術] Gemini 與 Ollama 兩個 provider 共用同一份 prompt，
  *        避免兩邊各寫一份悄悄漂移（與 handoff 契約同一哲學）。
- *        PROMPT_VERSION 是快取失效的核心機制：
- *        歌詞翻譯是「不可變內容」（歌詞不會變），所以不用 TTL；
- *        唯一合理的失效時機是 prompt 或模型改版 —
- *        改這份檔案時把版本 +1，所有舊快取自然 miss、重新生成。
+ *        PROMPT_VERSION 由完整提示詞內容算出，不需手動遞增；快取沒有 TTL。
  * [童趣] 這是廚房的「總食譜」：兩位廚師（Gemini / Ollama）都照
- *        同一本食譜做菜。食譜改版號碼 +1，以前做好的冷凍菜
+ *        同一本食譜做菜。食譜改變，以前做好的冷凍菜
  *        就自動視為過期，客人會吃到新食譜的菜。
  * =====================================================================
  */
-
-
-
+import { createHash } from 'node:crypto';
 export const SYSTEM_INSTRUCTION =
   '你是一位精通多國語言且極具文學素養的資深樂評人，擅長將外文歌詞翻譯為優美、感性且富含意境的繁體中文。';
 
@@ -78,4 +75,9 @@ ${OUTPUT_FORMAT}`;
 [短評內容]
 `;
 }
+
+// 真實原文與查無原文的規則都會影響輸出，兩條分支都必須納入失效版本。
+export const PROMPT_VERSION = createHash('sha256')
+  .update(JSON.stringify([SYSTEM_INSTRUCTION, buildLyricsPrompt('', '', 'fixture'), buildLyricsPrompt('', '')]))
+  .digest('hex').slice(0, 16);
 

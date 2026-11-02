@@ -1,10 +1,12 @@
 /**
+ * 檔案用途：共用 Markdown 格式與本機／R2 快取入口。
+ * 所在層：src；主要關聯：pipeline.ts、r2-cache.js、tests/vault-writer.test.js。
  * =====================================================================
  * 🗃️ Vault Writer — Obsidian 相容的歌詞翻譯落盤（Markdown + frontmatter）
  * Moved from music-release-agent/src/services/lyrics-cache.js
  * =====================================================================
  * [技術] 每筆快取是一個帶 YAML frontmatter 的 .md 檔：
- *        - 預設放 repo 內 `data/lyrics-cache/`（gitignored，clone 即可用）
+ *        - 預設放 repo 內 `data/lyrics-vault/`（gitignored，clone 即可用）
  *        - 設 LYRICS_CACHE_DIR 環境變數可指到你的 Obsidian vault —
  *          快取同時變成可瀏覽、可全文搜尋、可連結的筆記
  *        失效策略：歌詞翻譯是不可變內容 → 沒有 TTL。
@@ -18,6 +20,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { createHash } from 'node:crypto';
 import { acquireLock } from './file-lock.js';
 
 /** vault 目錄解析移至 vault-path.js（支援 ~ 展開；LYRICS_VAULT_DIR 優先、LYRICS_CACHE_DIR 相容） */
@@ -35,9 +38,31 @@ export function safeSlug(text) {
   return slug || 'untitled';
 }
 
-/** cache key（檔名）：歌手--歌名.provider.v版本.md — 任一變動即 miss */
-export function cacheFileName({ artistName, trackName, provider, promptVersion }) {
-  return `${safeSlug(artistName)}--${safeSlug(trackName)}.${safeSlug(provider)}.v${Number(promptVersion)}.md`;
+/** cache key（檔名）：歌手--歌名.provider[.m模型策略hash].v版本.md — 任一變動即 miss */
+export function cacheFileName({ artistName, trackName, provider, promptVersion, model }) {
+  // Hash 是字串，轉數字會把含 a-f 的版本全變成 NaN；模型也要分開，避免換模型仍吃舊翻譯。
+  const modelKey = model ? `.m${createHash('sha256').update(model).digest('hex').slice(0, 16)}` : '';
+  return `${safeSlug(artistName)}--${safeSlug(trackName)}.${safeSlug(provider)}${modelKey}.v${safeSlug(promptVersion)}.md`;
+}
+
+function cacheBackend() {
+  const backend = process.env.LYRICS_CACHE_BACKEND || 'local';
+  if (!['local', 'r2'].includes(backend)) throw new Error('LYRICS_CACHE_BACKEND 必須是 local 或 r2');
+  return backend;
+}
+
+export async function validateCacheConfiguration() {
+  if (cacheBackend() === 'r2') {
+    const { validateR2Configuration } = await import('./r2-cache.js');
+    validateR2Configuration();
+  }
+}
+
+function assertFileName(fileName) {
+  // 雲端 key 與本機路徑共用邊界，避免呼叫者繞過檔名產生器後讀寫其他資料。
+  if (typeof fileName !== 'string' || !fileName.endsWith('.md') || /[/\\\u0000-\u001f]/.test(fileName) || fileName.includes('..')) {
+    throw new Error('不合法的歌詞快取檔名');
+  }
 }
 
 /** 序列化 frontmatter（YAML 子集：布林值與數字原樣、字串加引號轉義） */
@@ -82,6 +107,14 @@ export function parseCacheFile(content) {
 
 /** 讀快取：不存在或壞掉 → null（miss） */
 export async function readCachedLyrics(dir, fileName) {
+  assertFileName(fileName);
+  if (cacheBackend() === 'r2') {
+    const { readR2Cache } = await import('./r2-cache.js');
+    const content = await readR2Cache(fileName);
+    const parsed = content === null ? null : parseCacheFile(content);
+    if (content !== null && !parsed) console.warn('[LyricsService] R2 快取格式損壞，將重新取得');
+    return parsed;
+  }
   try {
     const content = await fs.readFile(path.join(dir, fileName), 'utf-8');
     return parseCacheFile(content);
@@ -92,9 +125,14 @@ export async function readCachedLyrics(dir, fileName) {
 
 /** 寫快取（write-through）：建目錄、frontmatter + 翻譯本文 */
 export async function writeCachedLyrics(dir, fileName, { frontmatter, body }) {
+  assertFileName(fileName);
+  const content = `${serializeFrontmatter(frontmatter)}\n${body.trim()}\n`;
+  if (cacheBackend() === 'r2') {
+    const { writeR2Cache } = await import('./r2-cache.js');
+    return writeR2Cache(fileName, content);
+  }
   await fs.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, fileName);
-  const content = `${serializeFrontmatter(frontmatter)}\n${body.trim()}\n`;
   // 同一檔案的並發寫入排隊序列化（file-lock 來自 nanoclaw-markdown-agent）
   const release = await acquireLock(filePath);
   try {
@@ -102,4 +140,23 @@ export async function writeCachedLyrics(dir, fileName, { frontmatter, body }) {
   } finally {
     release();
   }
+}
+
+export async function clearCachedTrack(dir, { artistName, trackName }) {
+  // 句點是檔名的版本分隔符；缺它會連 Song-live 這類不同歌曲也一起刪掉。
+  const prefix = `${safeSlug(artistName)}--${safeSlug(trackName)}.`;
+  if (cacheBackend() === 'r2') {
+    const { clearR2TrackCache } = await import('./r2-cache.js');
+    return clearR2TrackCache(prefix);
+  }
+  let files;
+  try {
+    files = await fs.readdir(dir);
+  } catch (error) {
+    if (error.code === 'ENOENT') return 0;
+    throw error;
+  }
+  const targets = files.filter(file => file.startsWith(prefix) && file.endsWith('.md'));
+  for (const file of targets) await fs.unlink(path.join(dir, file));
+  return targets.length;
 }

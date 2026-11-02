@@ -1,3 +1,9 @@
+<!--
+檔案用途：歌詞服務使用入口與設定導覽。
+所在層：repository root。
+主要關聯：TECHNICAL.md、docs/r2-cache.md、server.js。
+-->
+
 # 🎼 lyrics-vault-service
 
 `music-release-agent` 的 companion service：**快取優先的歌詞翻譯，落盤為 Obsidian 相容的 Markdown 筆記**。
@@ -14,7 +20,9 @@ POST /api/lyrics
 ```
 
 `LYRICS_VAULT_DIR` 指到你的 Obsidian vault，每首翻譯就是一則筆記。
-快取失效靠 `promptVersion`（不可變內容無 TTL）；`DELETE /api/lyrics` 是手動失效的唯一入口。
+快取版本包含 provider、模型策略與完整 prompt hash（不可變內容無 TTL）；`refresh: true` 可重新翻譯覆寫，`DELETE /api/lyrics` 清除單曲所有版本。
+
+部署時可設定 `LYRICS_CACHE_BACKEND=r2`，把相同 Markdown 存到私有 Cloudflare R2，服務重開或重新部署後繼續使用。需要的五項伺服器設定與操作限制見 [R2 設定](docs/r2-cache.md)；未啟用時保留本機模式。
 
 ## Evaluator Quickstart（零憑證、零網路）
 
