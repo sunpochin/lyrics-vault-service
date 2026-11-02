@@ -10,6 +10,9 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = name => readFileSync(resolve(root, name), 'utf8');
 const files = ['AGENTS.md', 'CLAUDE.md', 'CODEX.md', 'GEMINI.md', 'TECHNICAL.md', '.claudecoderules', '.clinerules', '.cursorrules', '.github/copilot-instructions.md', '.github/PULL_REQUEST_TEMPLATE.md', '.cursor/rules/project.mdc', '.agents/AGENTS.md', 'docs/AGENT_MAP.md'];
+for (const name of ['.windsurfrules', 'CLAUDE_CONVENTIONS.md', '.github/ai-tools-instructions.md']) {
+  if (existsSync(resolve(root, name))) files.push(name);
+}
 const problems = [];
 function collect(directory) {
   for (const entry of readdirSync(resolve(root, directory), { withFileTypes: true })) {
@@ -42,7 +45,9 @@ for (const skill of readdirSync(resolve(root, 'skills'))) {
     }
   }
 }
-for (const name of ['package.json', '.vscode/settings.json', 'docs/agents/harness-source.json']) JSON.parse(read(name));
+// 為什麼 package 可選：文章庫沒有 npm 專案，不能為了共用檢查而強加依賴。
+for (const name of ['.vscode/settings.json', 'docs/agents/harness-source.json']) JSON.parse(read(name));
+if (existsSync(resolve(root, 'package.json'))) JSON.parse(read('package.json'));
 if (read('AGENTS.md').split('\n').length > 150) problems.push('AGENTS.md: move operational detail to side documents');
 if (problems.length) {
   console.error(problems.join('\n'));

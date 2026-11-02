@@ -9,4 +9,4 @@ description: Enforce the project constitution and thin adapters for rule or code
 
 Read `AGENTS.md` at the repository root as the sole authority. Apply its ELI5 explanation, Traditional Chinese why-comments, relevant technical docs, and task branch commit/push steps.
 Keep invariants in AGENTS.md, operations in its on-demand docs index, and tool adapters thin. Canonical skills live in `skills/`; discovery adapters must not duplicate policy.
-After rule changes run `npm run harness:check`. Follow `docs/agents/git-workflow.md`, not another repository's branch or package-manager conventions.
+After rule changes run `node scripts/check-harness.mjs`. Follow `docs/agents/git-workflow.md`, not another repository's branch or package-manager conventions.

@@ -52,7 +52,7 @@ describe('AI harness Git content guard', () => {
     expect(contentProblem('config/.env.production', '')).toBe('protected file');
   });
   it('rejects private vaults, local state, certificates and tool caches', () => {
-    for (const name of ['data/lyrics-vault/song.md', 'data/lyrics-cache/song.md', '.local/state', '.serena/project.yml', 'private.key']) {
+    for (const name of ['data/lyrics-vault/song.md', 'data/lyrics-cache/song.md', '.local/state', '.serena/project.yml', 'private.key', 'spotify_tokens.json', 'config/credentials.json']) {
       expect(contentProblem(name, 'placeholder')).toBe('protected file');
     }
   });
@@ -86,6 +86,14 @@ describe('AI harness Git content guard', () => {
     repo.git('commit', '-m', 'test: fixture only');
     writeFileSync(join(repo.cwd, '.env.local'), 'local-only');
     expect(inspectGit({ cwd: repo.cwd, tracked: true })).toEqual(['example.txt: possible secret']);
+  });
+  it('treats a submodule as a separate repository instead of reading a gitlink as a blob', () => {
+    const repo = fixture();
+    const sha = repo.git('rev-parse', 'HEAD').trim();
+    repo.git('update-index', '--add', '--cacheinfo', `160000,${sha},child`);
+    expect(inspectGit({ cwd: repo.cwd, commit: true })).toEqual([]);
+    repo.git('commit', '-m', 'test: gitlink fixture');
+    expect(inspectGit({ cwd: repo.cwd, tracked: true })).toEqual([]);
   });
   it('permits removal of a protected file without reading its deleted blob', () => {
     const repo = fixture();

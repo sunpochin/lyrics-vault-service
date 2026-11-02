@@ -7,7 +7,7 @@
 # 核心憲法
 
 所有 AI Agent 以本檔為唯一專案規則來源。工具轉接檔與旁支文件只能補充，不能放寬。
-本規則由 jia-jian-log 移植並裁切；來源與取捨見 [移植紀錄](docs/agents/harness-port.md)。
+本規則由 jia-jian-log 移植並裁切，各 repo 保有可獨立使用的正本；來源與取捨見 [移植紀錄](docs/agents/harness-port.md)。
 
 ## 1. 工具定位與規則分層
 
@@ -33,7 +33,7 @@
 ### 破壞性操作與受保護資源
 
 - 未經使用者明確同意，不執行 `rm -rf`、`git reset --hard`、`git clean -fd`、`drop table`、`truncate table`、`supabase db reset`、`supabase db push`、`vercel deploy --prod`、強制推送或覆寫 `.env*`。
-- `.env*`、OAuth 憑證、Spotify cookie／access token、API key、私鑰、正式資料與使用者 vault 都是受保護資源。不得因工具可讀就讀取、輸出或搬入 Git。
+- `.env*`、OAuth 憑證、Spotify cookie／access token、API key、私鑰、正式資料與私人內容庫 都是受保護資源。不得因工具可讀就讀取、輸出或搬入 Git。
 - 只允許提交無秘密的 `.env.example`。測試用暫存目錄、假 identifier 與 stub，不碰真實 vault、登入流程或付費 provider。
 - 任務完成不代表已授權合併、部署、重啟服務、操作遠端資料或發布；這些需要該次工作的明確授權。
 
@@ -72,10 +72,11 @@
 | 情境 | 文件 |
 | --- | --- |
 | 定位服務入口、測試、資料與契約 | [docs/AGENT_MAP.md](docs/AGENT_MAP.md)、[TECHNICAL.md](TECHNICAL.md) |
-| 建分支、隔離並行工作、commit／push／PR | [git-workflow.md](docs/agents/git-workflow.md) |
+| 建分支、隔離並行工作、commit／push／PR、多 repo／submodule | [git-workflow.md](docs/agents/git-workflow.md) |
 | review、thread 結案、交付判定 | [review-governance.md](docs/agents/review-governance.md) |
 | npm 指令、工具權限、驗證與 hook 啟用 | [local-tools.md](docs/agents/local-tools.md) |
 | Issue、跨模型交接、工作中斷 | [issue-driven-workflow.md](docs/agents/issue-driven-workflow.md) |
 | 選模型、兩次失敗、獨立複審 | [model-routing.md](docs/ai/model-routing.md) |
 | 安裝或更新 skill／plugin | [skill-security.md](docs/agents/skill-security.md) |
 | 修改憲法、adapter、skills 或 CI | [harness-port.md](docs/agents/harness-port.md)、[prime-directive](skills/prime-directive/SKILL.md) |
+| 使用者指定持續 Goal、交付停止條件 | [codex-autopilot.md](docs/agents/codex-autopilot.md)、[skill](skills/codex-autopilot/SKILL.md) |

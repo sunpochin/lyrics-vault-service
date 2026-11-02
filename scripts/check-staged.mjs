@@ -23,6 +23,7 @@ export function contentProblem(name, text) {
   const leaf = name.split('/').at(-1);
   if ((/^\.env(?:\.|$)/.test(leaf) && leaf !== '.env.example') ||
       /^(?:data\/lyrics-(?:vault|cache)\/|\.local\/|\.serena\/)/.test(name) ||
+      /^(?:spotify_tokens|oauth_tokens|credentials)\.json$/.test(leaf) ||
       /\.(?:pem|key|p12|pfx)$/.test(leaf)) {
     return 'protected file';
   }
@@ -37,10 +38,21 @@ export function inspectGit({ cwd = process.cwd(), tracked = false, commit = fals
     const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).trim();
     if (['main', 'staging', 'HEAD'].includes(branch)) problems.push('commit requires a task branch');
   }
-  const names = tracked
-    ? git(['ls-tree', '-r', '--name-only', '-z', 'HEAD'])
-    : git(['diff', '--cached', '--name-only', '--diff-filter=ACMRT', '-z']);
-  for (const name of names.split('\0').filter(Boolean)) {
+  const entries = tracked
+    ? git(['ls-tree', '-r', '-z', 'HEAD'])
+    : git(['ls-files', '--stage', '-z']);
+  const staged = tracked ? null : new Set(git(['diff', '--cached', '--name-only', '--diff-filter=ACMRT', '-z']).split('\0'));
+  for (const entry of entries.split('\0').filter(Boolean)) {
+    const tab = entry.indexOf('\t');
+    const metadata = entry.slice(0, tab).split(' ');
+    const name = entry.slice(tab + 1);
+    if (staged && !staged.has(name)) continue;
+    // 為什麼略過 gitlink：子 repo commit 不是 blob；子 repo 必須獨立驗證，不能誤讀父目錄內容。
+    if (metadata[0] === '160000') continue;
+    if (!tracked && metadata[2] !== '0') {
+      problems.push(`${name}: unresolved index conflict`);
+      continue;
+    }
     // 為什麼先判檔名：受保護檔案只需拒絕，不應為了掃描而讀取其中的秘密。
     const pathProblem = contentProblem(name, '');
     if (pathProblem) {

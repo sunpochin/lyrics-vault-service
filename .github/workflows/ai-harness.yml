@@ -1,0 +1,27 @@
+# 檔案用途：獨立驗證 AI harness，不改產品 CI 或觸發任何發布。
+# 所在層：.github/workflows；僅唯讀權限與離線假資料。
+# 主要關聯：scripts/check-harness.mjs、scripts/check-staged.mjs、docs/agents/harness-port.md。
+name: AI Harness
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: harness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # 沿用來源鎖定版本
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # 沿用已移植版本
+        with:
+          node-version: '22'
+      - run: node scripts/check-harness.mjs
+      - run: node scripts/check-staged.mjs --tracked
+      - run: npm ci
+      - run: npm run harness:test
