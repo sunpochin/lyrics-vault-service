@@ -62,6 +62,180 @@
       "properties": {
         "error": { "type": "string", "minLength": 1 }
       }
+    },
+    "workbenchSearchRequest": {
+      "type": "object",
+      "required": [
+        "trackName"
+      ],
+      "properties": {
+        "trackName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artistName": {
+          "type": "string"
+        }
+      }
+    },
+    "workbenchSearchResponse": {
+      "type": "object",
+      "required": [
+        "results"
+      ],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "trackName",
+              "artistName",
+              "albumName",
+              "duration",
+              "instrumental",
+              "lyrics",
+              "sourceUrl"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "trackName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "artistName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "albumName": {
+                "type": "string"
+              },
+              "duration": {
+                "type": "number"
+              },
+              "instrumental": {
+                "type": "boolean"
+              },
+              "lyrics": {
+                "type": "string"
+              },
+              "sourceUrl": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "workbenchTranslateRequest": {
+      "type": "object",
+      "required": [
+        "trackName",
+        "sourceType"
+      ],
+      "properties": {
+        "trackName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artistName": {
+          "type": "string"
+        },
+        "sourceType": {
+          "enum": [
+            "lrclib",
+            "pasted"
+          ]
+        },
+        "sourceId": {
+          "type": "integer"
+        },
+        "lyrics": {
+          "type": "string"
+        },
+        "sourceLabel": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "credits": {
+          "type": "string"
+        }
+      }
+    },
+    "workbenchTranslateResponse": {
+      "type": "object",
+      "required": [
+        "trackName",
+        "artistName",
+        "lines",
+        "translations",
+        "source",
+        "sourceLabel",
+        "sourceUrl",
+        "credits",
+        "provider",
+        "cached",
+        "saved"
+      ],
+      "properties": {
+        "trackName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artistName": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "translations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source": {
+          "enum": [
+            "lrclib",
+            "user-pasted"
+          ]
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "credits": {
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "gemini",
+            "ollama"
+          ]
+        },
+        "cached": {
+          "type": "boolean"
+        },
+        "saved": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

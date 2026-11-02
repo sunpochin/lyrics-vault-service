@@ -1,4 +1,5 @@
 /**
+ * 檔案用途：歌詞服務 HTTP 入口；所在層：root；主要關聯：src/workbench-routes.js、src/pipeline.ts。
  * =====================================================================
  * 🎼 lyrics-vault-service — 歌詞翻譯 + Obsidian vault 落盤 companion service
  * =====================================================================
@@ -12,6 +13,8 @@
  */
 import express from 'express';
 import dotenv from 'dotenv';
+// 獨立頁與專輯頁分開驗證，避免貼上原文的操作影響既有歌曲快取。
+import { workbenchRoutes } from './src/workbench-routes.js';
 import { getLyricsWithCache, clearTrackCache } from './src/pipeline.js';
 import { resolveVaultDir } from './src/vault-path.js';
 import {
@@ -28,6 +31,7 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 const handoffSchema = loadHandoffSchema();
+app.use(workbenchRoutes());
 
 /** 回應送出前先過契約自我檢查 — 自己違約自己先死，不污染下游 */
 function sendContractJson(res, statusCode, definitionName, body) {

@@ -7,12 +7,13 @@
  * Ollama 的「主模型 → fallback 模型」鏈結構參考
  * ../youtube-podcast-translator/src/services/ai.service.js。
  * =====================================================================
+ * 檔案用途：共用翻譯供應商；所在層：src；主要關聯：pipeline.ts、workbench.js。
  */
 import { GoogleGenAI } from '@google/genai';
 import { SYSTEM_INSTRUCTION, buildLyricsPrompt } from './lyrics-prompt.js';
 
 /** Gemini provider（需 GEMINI_API_KEY） */
-export async function translateWithGemini(artistName, trackName, sourceLyrics) {
+export async function translateWithGemini(artistName, trackName, sourceLyrics, options: { prompt?: string; timeoutMs?: number; json?: boolean } = {}) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('Missing GEMINI_API_KEY in environment variables');
   }
@@ -21,8 +22,9 @@ export async function translateWithGemini(artistName, trackName, sourceLyrics) {
 
   const response = await ai.models.generateContent({
     model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    contents: [{ text: buildLyricsPrompt(artistName, trackName, sourceLyrics) }],
-    config: { systemInstruction: SYSTEM_INSTRUCTION }
+    // 獨立頁需要可驗證的逐行 JSON，但仍共用供應商與金鑰，避免另養一套翻譯服務。
+    contents: [{ text: options.prompt ?? buildLyricsPrompt(artistName, trackName, sourceLyrics) }],
+    config: { systemInstruction: SYSTEM_INSTRUCTION, ...(options.json && { responseMimeType: 'application/json' }), ...(options.timeoutMs && { httpOptions: { timeout: options.timeoutMs } }) }
   });
 
   return response.text;
@@ -48,16 +50,18 @@ export async function* translateWithGeminiStream(artistName, trackName, sourceLy
 }
 
 /** 對單一 Ollama 模型發出翻譯請求 */
-async function ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyrics) {
+async function ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyrics, options: { prompt?: string; timeoutMs?: number; json?: boolean } = {}) {
   const response = await fetch(`${baseUrl}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
       system: SYSTEM_INSTRUCTION,
-      prompt: buildLyricsPrompt(artistName, trackName, sourceLyrics),
+      prompt: options.prompt ?? buildLyricsPrompt(artistName, trackName, sourceLyrics),
+      ...(options.json && { format: 'json' }),
       stream: false
-    })
+    }),
+    ...(options.timeoutMs && { signal: AbortSignal.timeout(options.timeoutMs) })
   });
 
   if (!response.ok) {
@@ -140,16 +144,16 @@ export async function* translateWithOllamaStream(artistName, trackName, sourceLy
  * Ollama provider：本地模型，零 API 費用（需本機跑 Ollama）。
  * 主模型失敗且設有 OLLAMA_FALLBACK_MODEL 時，自動嘗試 fallback 模型。
  */
-export async function translateWithOllama(artistName, trackName, sourceLyrics) {
+export async function translateWithOllama(artistName, trackName, sourceLyrics, options: { prompt?: string; timeoutMs?: number; json?: boolean } = {}) {
   const baseUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
   const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
   const fallbackModel = process.env.OLLAMA_FALLBACK_MODEL;
 
   try {
-    return await ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyrics);
+    return await ollamaGenerate(baseUrl, model, artistName, trackName, sourceLyrics, options);
   } catch (err) {
     if (!fallbackModel || fallbackModel === model) throw err;
     console.warn(`[TranslateProvider] ⚠️ Ollama 主模型 ${model} 失敗 (${err.message})，改用 fallback 模型 ${fallbackModel}`);
-    return ollamaGenerate(baseUrl, fallbackModel, artistName, trackName, sourceLyrics);
+    return ollamaGenerate(baseUrl, fallbackModel, artistName, trackName, sourceLyrics, options);
   }
 }
