@@ -50,7 +50,18 @@
 
 ---
 
-## 3. 測試與驗證 (Verification)
+## 3. 獨立翻譯工作頁（2026-11-03）
+
+- `POST /api/lyrics/search` 依歌名與選填歌手搜尋 LRCLIB，最多回傳 12 個版本，區分空結果與來源不可用；由使用者確認歌手、專輯和原文。參考 [LRCLIB API](https://lrclib.net/docs)；不爬取 Musixmatch 網頁或讀取 Spotify cookie。
+- `POST /api/lyrics/translate` 支援 `sourceType=lrclib`（固定 `/api/get/:id` 重讀並核對歌曲與請求附帶的預覽原文；改詞須重新確認）或 `pasted`（原文明確標記使用者提供，來源名稱、HTTPS 連結、作詞作曲／版權註記由使用者填寫）。來源名稱不是系統查證。兩端均以 `contracts/lyrics-handoff.schema.json` 驗證；既有 `/api/lyrics` 與串流契約不變。
+- 新頁只接受明確原文，限制 20,000 字、300 個非空行、每行 1,000 字。模型僅回傳同長度的中文陣列，伺服器自行保留原文順序與重複句，拒絕缺行、多行、空字串或非中文結果。此檢查不能證明翻譯語意正確，仍需人工閱讀。
+- 沿用 Gemini／Ollama，僅新增選填 prompt、JSON 輸出模式與 60 秒逾時；Gemini 失敗可降級既有 Ollama 鏈，回報實際 provider，不把未翻譯原文當成功。最多三次 provider 嘗試，proxy 等待 200 秒。
+- 沿用 Markdown/frontmatter 與既有 local/R2 儲存入口，使用 `workbench-*` 獨立命名；key 包含完整歌曲資訊、原文、來源、署名、模型策略與 prompt hash。相同工作在同一程序共用 Promise，避免同時重複付費；跨程序去重尚未提供。儲存失敗回 `saved:false`，UI 提示先複製，不能宣稱已保存。
+- 排除直接沿用舊 Markdown prompt：日文附加讀音會破壞嚴格兩行對照，且難以可靠檢查缺行。也不讓模型猜歌詞、不自選第一個同名結果、不建立第二套供應商或另加資料庫。Musixmatch 自動串接需另有官方 API 授權，本次依使用者決定先用 LRCLIB＋貼上。
+- 受影響測試：`npm test -- tests/workbench.test.js tests/lyrics-source.test.js tests/vault-writer.test.js tests/contract/lyrics-handoff.test.js`。使用暫存 vault、假歌詞與 stub provider；不代表實際付費模型、私人 vault 或 Musixmatch 已驗收。
+- 本機驗證：75 項測試、harness 靜態檢查與 17 項 harness 測試通過；型別檢查仍為既有 53 個診斷，未新增。瀏覽器以假來源／假模型／暫存 vault 驗證搜尋、選版本、貼上、逐行與重複句、快取、來源與署名及錯誤狀態；真實 LRCLIB 搜尋 `Deseándote` 回 200、有歌詞候選，未以付費模型或私人 vault 驗收翻譯。
+
+## 4. 測試與驗證 (Verification)
 - 移植前單元與契約測試涵蓋 31 項（2026-11-02 `npm test` 通過）；新增 harness 隔離檢查由 `npm run harness:test` 執行。型別檢查與 demo 仍有既有失敗，見本機工具文件，不代表全服務已驗收。
 - 測試套件包含：
   - `tests/contract/lyrics-handoff.test.js`：驗證 JSON Schema 契約防護與漂移檢查。
