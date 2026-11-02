@@ -14,8 +14,12 @@
 | `npm ci` | 依既有 package-lock 安裝依賴 |
 | `npm test` | 既有 Vitest 測試 |
 | `npm run harness:test` | 只跑隔離 Git／review gate 回歸測試 |
+| `npm run typecheck` | 現有 TypeScript 診斷；歷史失敗基線見下方 |
+| `npm run demo:verify` | 既有離線示範；歷史 JS／TS 入口失敗見下方 |
 
 沒有 lint 指令，不宣稱 lint 已通過。產品測試與 harness 防線測試分別回報；真實 provider、OAuth、私有 R2／vault 與外部發布不在離線驗證內。
+
+2026-11-02 前次移植記錄：`npm run typecheck` 有既有隱含 any／缺少宣告錯誤；`npm run demo:verify` 因入口載入已改名的 `pipeline.js` 而失敗。這是保留的歷史基線，本次沒有重跑這兩項，也未修改產品程式或降低檢查來掩蓋失敗；判斷新退化前仍須核對當次版本。既有 CI 的非阻擋 typecheck 診斷不代表已修復。
 
 ## Git hook
 
