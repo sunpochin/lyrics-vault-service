@@ -1,7 +1,7 @@
 {
   "sourceRepository": "family-care-ops/jia-jian-log",
   "sourceCommit": "3e830e2ef270d0feb2adeaa8d48203154bf00af8",
-  "importedOn": "2026-11-02",
+  "importedOn": "2026-11-03",
   "files": [
     {
       "path": "AGENTS.md",
@@ -107,6 +107,23 @@
       "path": ".github/workflows/review-thread-gate.yml",
       "sourceSha256": "3a427947404a74be4cd63db3d13d2bc1df7967e1d84c2bef2957846710172c16",
       "mode": "adapted"
+    },
+    {
+      "path": "CODEX.md",
+      "sourceSha256": "84af309e9c0296dfb30eddd5af1860b81668e68ed599828fe49c71d2f43c293d",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/codex-autopilot.md",
+      "sourceSha256": "46bd8d359ea7c81f78b286f377810f094931abd47d75cf27d7c040e1d1892f10",
+      "mode": "adapted"
+    },
+    {
+      "path": "skills/codex-autopilot/SKILL.md",
+      "sourceSha256": "b79bebe17b047533b7e34a5ec724db5ba91dce53aae1a96127dd7ce8710466aa",
+      "mode": "adapted"
     }
-  ]
+  ],
+  "intermediateRepository": "lyrics-vault-service",
+  "intermediateCommit": "928f0d3"
 }

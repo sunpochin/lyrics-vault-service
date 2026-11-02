@@ -56,3 +56,11 @@
   - `tests/contract/lyrics-handoff.test.js`：驗證 JSON Schema 契約防護與漂移檢查。
   - `tests/lyrics-source.test.js`：LRCLIB 抓取、LRC 保留與降級。
   - `tests/vault-writer.test.js`：Provider 鏈條降級、快取讀寫與 Markdown 格式。
+
+## AI harness 與工作流程
+
+- [憲法](AGENTS.md)、[Agent Map](docs/AGENT_MAP.md)、[移植決策與排除方案](docs/agents/harness-port.md)。
+- [Git／多 repo／submodule](docs/agents/git-workflow.md)、[Review](docs/agents/review-governance.md)、[本機指令與 hook](docs/agents/local-tools.md)。
+- [Issue 交接](docs/agents/issue-driven-workflow.md)、[模型風險](docs/ai/model-routing.md)、[Skill 安全](docs/agents/skill-security.md)、[指定 Goal](docs/agents/codex-autopilot.md)。
+
+保留各 repo 獨立可用的規則正本；不引用相鄰 checkout 作執行期依賴。選擇 Node 標準函式庫共用防線，不搬來源專屬平台與自動發布。詳見移植決策。

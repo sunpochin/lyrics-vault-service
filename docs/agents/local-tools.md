@@ -1,35 +1,34 @@
 <!--
-檔案用途：記錄本 repo 實際可用指令、權限與驗證邊界。
+檔案用途：實際指令、Git hook 啟用與驗證界線。
 所在層：docs/agents。
-主要關聯：package.json、scripts/check-harness.mjs、scripts/check-staged.mjs。
+主要關聯：AGENTS.md、TECHNICAL.md。
 -->
 
 # 本機工具與驗證
 
 | 指令 | 用途 |
 | --- | --- |
-| `npm ci` | 依 package-lock 安裝，CI 使用 Node 22 |
-| `npm test` | 現有 Vitest 單元與契約測試 |
-| `npm test -- tests/lyrics-source.test.js` | 精準驗證相關檔案 |
-| `npm run harness:check` | 本機連結、薄轉接與 skill 同步檢查 |
-| `npm run harness:test` | 提交防線的隔離回歸測試，不需要憑證或網路 |
-| `npm run harness:staged` | 只檢查 index 中的待提交內容 |
-| `npm run harness:tracked` | CI 檢查 HEAD 內所有 tracked 內容 |
-| `npm run typecheck` | 現有 TypeScript 診斷，基線已有失敗 |
-| `npm run demo:verify` | 既有離線示範；目前入口仍載入已改名的 pipeline.js，基線失敗 |
+| `node scripts/check-harness.mjs` | 規則連結、薄轉接與技能入口 |
+| `node scripts/check-staged.mjs` | 只檢查 index，不讀工作區秘密 |
+| `node scripts/check-staged.mjs --tracked` | 檢查已提交 HEAD 內容，CI 使用 |
+| `npm ci` | 依既有 package-lock 安裝依賴 |
+| `npm test` | 既有 Vitest 測試 |
+| `npm run harness:test` | 只跑隔離 Git／review gate 回歸測試 |
 
-2026-11-02 移植前：31 項 Vitest 測試通過；typecheck 因既有隱含 any／缺少宣告失敗；demo 因既有 JS／TS 載入路徑失敗。
-本次不修改產品程式來掩蓋這些失敗；CI 的 typecheck 診斷獨立呈現且暫不擋移植，修復後應改為必要檢查。此 repo 尚無 lint 指令，不宣稱 lint 已通過。
+沒有 lint 指令，不宣稱 lint 已通過。產品測試與 harness 防線測試分別回報；真實 provider、OAuth、私有 R2／vault 與外部發布不在離線驗證內。
 
 ## Git hook
 
-先確認 `git config --get core.hooksPath` 沒有其他團隊設定，再執行 `git config --local core.hooksPath .githooks`。
-若已有別的 hooks，先整合，不直接覆寫。`.githooks/pre-commit` 在提交時拒絕 main／staging／detached HEAD、受保護資料及常見秘密型態，並跑 harness 靜態檢查。
-完整產品測試由工作流程與 CI 跑；hook 不聲稱能攔截每種 shell 指令或辨認所有秘密。
+先查 `git config --get core.hooksPath`；沒有其他設定才用 `git config --local core.hooksPath .githooks`，既有 hook 先整合，不覆蓋。
+`.githooks/pre-commit` 拒絕 main／staging／detached commit、受保護路徑與常見秘密，然後檢查 harness；產品測試依風險與 CI 執行。
+每個 clone 都要本機啟用；檔案存在不代表已啟用。Git hook 不攔任意 shell 指令，不假稱已安裝來源工具的 PreToolUse hook；平台權限與憲法仍適用。
 
-## 權限與工具降級
+## 權限與降級
 
-需要工具時先確認這項任務實際要用的檔案、Git、網路與平台權限；已授權就繼續。唯讀先取得證據，寫入才依平台流程集中提出具體操作。
-工具失效先完成可做的工作；不能偷偷換帳號、讀憑證或降低信任設定。優先用已連接的 GitHub 工具；CLI 作不足功能的備援，不把 token 印出來。
-找檔案先用 rg；已讀內容不要重複載入。獨立查詢可批次，依賴的修改與驗證循序做。測試不用管線吞掉 exit code。
-本機／CI 通過只證明指定版本與環境；真實 Spotify、付費 Gemini、Ollama、Obsidian vault、正式服務都需要各自的證據與授權。
+先查本次必要權限，已授權工作直接做；工具不足先完成可做部分，集中回報具體阻礙。優先用已連接服務，必要才用 CLI；不換帳號、讀取 token 或改 trust。
+找檔案先 rg，獨立唯讀查詢可批次，修改與驗證循序做；不以管線吞掉 exit code。測試只用隔離暫存 repo、假 identifier 與 stub。
+秘密掃描只涵蓋常見格式，不能替代完整 scanner 與人工審查；報告只列路徑與原因，不印命中內容。CI 綠燈不能證明真人體驗、真實帳號、正式資料或 hosted 發布通過。
+
+## 2026-11-03 移植驗證
+
+本機 harness 靜態檢查與測試通過；本次總計 63 項測試通過（包含提交與 review gate 防線）。 hosted CI／review gate、真人／真實 provider 與正式發布沒有以本機結果冒充通過。
