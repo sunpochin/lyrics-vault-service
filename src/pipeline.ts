@@ -1,4 +1,6 @@
 /**
+ * 檔案用途：協調來源、翻譯與本機／R2 持久快取。
+ * 所在層：src；主要關聯：vault-writer.js、lyrics-prompt.ts、translate-provider.ts。
  * =====================================================================
  * 🎼 Lyrics Pipeline — 快取優先的歌詞翻譯協調器
  * Moved from music-release-agent/src/services/lyrics-service.js
@@ -11,11 +13,8 @@
  *        客人說「我要現做的！」（forceRefresh）才會跳過冷凍庫。
  * =====================================================================
  */
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
 import { translateWithGemini as translateLyrics, translateWithOllama } from './translate-provider.js';
-import { SYSTEM_INSTRUCTION, buildLyricsPrompt } from './lyrics-prompt.js';
+import { PROMPT_VERSION as promptHash } from './lyrics-prompt.js';
 import { fetchLyricsFromSource } from './lyrics-source.js';
 import { fetchSpotifyLyrics } from './spotify-lyrics.js';
 import {
@@ -23,14 +22,18 @@ import {
   cacheFileName,
   readCachedLyrics,
   writeCachedLyrics,
-  safeSlug
+  clearCachedTrack,
+  validateCacheConfiguration
 } from './vault-writer.js';
 
-// 計算 Prompt Hash 作為自動快取失效機制
-const promptHash = crypto.createHash('md5')
-  .update(SYSTEM_INSTRUCTION + buildLyricsPrompt('','',''))
-  .digest('hex')
-  .substring(0, 6);
+export function translationCacheFileName({ artistName, trackName, provider }: { artistName: string; trackName: string; provider: string }) {
+  // fallback 設定也會改變翻譯結果；版本描述的是請求的模型策略，不冒充實際執行模型。
+  const ollamaModels = [process.env.OLLAMA_MODEL || 'qwen2.5:7b', process.env.OLLAMA_FALLBACK_MODEL || ''];
+  const model = JSON.stringify(provider === 'gemini'
+    ? [process.env.GEMINI_MODEL || 'gemini-2.5-flash', ...ollamaModels]
+    : ollamaModels);
+  return cacheFileName({ artistName, trackName, provider, promptVersion: promptHash, model });
+}
 
 // translateWithOllama 已移至 translate-provider.js（與 Gemini provider 並列、共用 prompt SSOT）
 export { translateWithOllama } from './translate-provider.js';
@@ -41,6 +44,7 @@ export { translateWithOllama } from './translate-provider.js';
  * @returns {Promise<{ lyrics?: string, instrumental?: boolean, source: string }|null>}
  */
 export async function getRawLyrics({ artistName, trackName, trackId, forceRefresh = false }) {
+  await validateCacheConfiguration();
   const cacheDir = resolveCacheDir();
   const rawFileName = cacheFileName({ artistName, trackName, provider: 'raw', promptVersion: 0 });
 
@@ -96,9 +100,11 @@ export async function getRawLyrics({ artistName, trackName, trackId, forceRefres
  * @returns {{ text: string, cached: boolean, provider: string, translated: boolean }}
  */
 export async function getLyricsWithCache({ artistName, trackName, trackId, forceRefresh = false, translate = true }) {
+  // 即使手動更新跳過快取，也先驗證儲存設定，避免翻譯付費後才發現無處保存。
+  await validateCacheConfiguration();
   const provider = (process.env.LYRICS_PROVIDER || 'gemini').toLowerCase();
   const cacheDir = resolveCacheDir();
-  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: promptHash });
+  const fileName = translationCacheFileName({ artistName, trackName, provider });
 
   // 1. 冷凍庫優先：若有翻譯後的快取，直接回傳雙語對照
   if (!forceRefresh) {
@@ -206,9 +212,10 @@ export async function getLyricsWithCache({ artistName, trackName, trackId, force
  * 結束時進行 write-through。
  */
 export async function* getLyricsWithCacheStream({ artistName, trackName, trackId, forceRefresh = false }) {
+  await validateCacheConfiguration();
   const provider = (process.env.LYRICS_PROVIDER || 'gemini').toLowerCase();
   const cacheDir = resolveCacheDir();
-  const fileName = cacheFileName({ artistName, trackName, provider, promptVersion: promptHash });
+  const fileName = translationCacheFileName({ artistName, trackName, provider });
 
   // 1. 冷凍庫優先
   if (!forceRefresh) {
@@ -324,21 +331,9 @@ async function persistCache(cacheDir, fileName, { artistName, trackName, provide
  */
 export async function clearTrackCache({ artistName, trackName }) {
   const cacheDir = resolveCacheDir();
-  const prefix = `${safeSlug(artistName)}--${safeSlug(trackName)}`;
   try {
-    let files;
-    try {
-      files = await fs.readdir(cacheDir);
-    } catch (err) {
-      // vault 目錄尚未建立 = 沒有東西可清，這是合法狀態而非錯誤
-      if (err.code === 'ENOENT') return { success: true, clearedCount: 0 };
-      throw err;
-    }
-    const targets = files.filter(f => f.startsWith(prefix) && f.endsWith('.md'));
-    for (const file of targets) {
-      await fs.unlink(path.join(cacheDir, file));
-    }
-    return { success: true, clearedCount: targets.length };
+    const clearedCount = await clearCachedTrack(cacheDir, { artistName, trackName });
+    return { success: true, clearedCount };
   } catch (err) {
     console.error(`[LyricsService] ⚠️ 清除單曲快取失敗: ${err.message}`);
     return { success: false, error: err.message };

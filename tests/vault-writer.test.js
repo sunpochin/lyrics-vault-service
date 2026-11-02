@@ -1,4 +1,6 @@
 /**
+ * 檔案用途：驗證本機 Markdown 快取、版本與翻譯降級契約。
+ * 所在層：tests；主要關聯：src/vault-writer.js、src/pipeline.ts。
  * =====================================================================
  * 🗃️ Lyrics Cache 測試 — 「快取優先、零 token」宣稱的可執行證明
  * =====================================================================
@@ -18,9 +20,10 @@ import {
   cacheFileName,
   parseCacheFile,
   readCachedLyrics,
-  writeCachedLyrics
+  writeCachedLyrics,
+  clearCachedTrack
 } from '../src/vault-writer.js';
-import { getLyricsWithCache, translateWithOllama } from '../src/pipeline.js';
+import { getLyricsWithCache, translateWithOllama, translationCacheFileName } from '../src/pipeline.js';
 import { PROMPT_VERSION } from '../src/lyrics-prompt.js';
 
 let tmpDir;
@@ -28,10 +31,14 @@ const envBackup = {};
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lyrics-cache-'));
-  for (const key of ['LYRICS_CACHE_DIR', 'LYRICS_PROVIDER', 'GEMINI_API_KEY', 'OLLAMA_URL', 'OLLAMA_MODEL']) {
+  for (const key of ['LYRICS_CACHE_BACKEND', 'LYRICS_VAULT_DIR', 'LYRICS_CACHE_DIR', 'LYRICS_PROVIDER', 'GEMINI_API_KEY', 'OLLAMA_URL', 'OLLAMA_MODEL', 'GEMINI_MODEL', 'OLLAMA_FALLBACK_MODEL', 'SPOTIFY_SP_DC']) {
     envBackup[key] = process.env[key];
   }
   process.env.LYRICS_CACHE_DIR = tmpDir;
+  // 測試只能使用暫存目錄與假 provider，不能沿用開發者的私人 vault 或雲端設定。
+  process.env.LYRICS_CACHE_BACKEND = 'local';
+  delete process.env.LYRICS_VAULT_DIR;
+  delete process.env.SPOTIFY_SP_DC;
 });
 
 afterEach(async () => {
@@ -69,7 +76,7 @@ describe('快取檔案：roundtrip 與 key 規則（正常情境）', () => {
   it('cache hit 時完全不呼叫 provider（無金鑰也能回應 = 零 token 證明）', async () => {
     delete process.env.GEMINI_API_KEY; // 沒有金鑰：若走到 provider 會 throw
     process.env.LYRICS_PROVIDER = 'gemini';
-    const fileName = cacheFileName({ artistName: 'Café Tacvba', trackName: 'Eres', provider: 'gemini', promptVersion: PROMPT_VERSION });
+    const fileName = translationCacheFileName({ artistName: 'Café Tacvba', trackName: 'Eres', provider: 'gemini' });
     await writeCachedLyrics(tmpDir, fileName, {
       frontmatter: { artist: 'Café Tacvba', track: 'Eres', provider: 'gemini', promptVersion: PROMPT_VERSION },
       body: '快取的翻譯內容'
@@ -158,7 +165,7 @@ describe('快取服務：失敗與 forceRefresh（failure scenario）', () => {
     delete process.env.GEMINI_API_KEY;
     process.env.LYRICS_PROVIDER = 'gemini';
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
-    const fileName = cacheFileName({ artistName: 'X', trackName: 'Y', provider: 'gemini', promptVersion: PROMPT_VERSION });
+    const fileName = translationCacheFileName({ artistName: 'X', trackName: 'Y', provider: 'gemini' });
     await writeCachedLyrics(tmpDir, fileName, {
       frontmatter: { artist: 'X', track: 'Y', provider: 'gemini', promptVersion: PROMPT_VERSION },
       body: '舊的快取'
@@ -243,7 +250,7 @@ describe('快取服務：失敗與 forceRefresh（failure scenario）', () => {
     expect(result).toMatchObject({ cached: false, provider: 'ollama', source: 'llm-recall' });
 
     // 驗證快取檔案中的後設資料
-    const fileName = cacheFileName({ artistName: 'NoLyrics', trackName: 'Test', provider: 'ollama', promptVersion: PROMPT_VERSION });
+    const fileName = translationCacheFileName({ artistName: 'NoLyrics', trackName: 'Test', provider: 'ollama' });
     const cached = await readCachedLyrics(tmpDir, fileName);
     expect(cached.frontmatter.verified).toBe(false);
     expect(cached.frontmatter.containsFullLyrics).toBe(false);
@@ -263,10 +270,44 @@ describe('快取服務：失敗與 forceRefresh（failure scenario）', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await getLyricsWithCache({ artistName: 'HasLyrics', trackName: 'Test' });
-    const fileName = cacheFileName({ artistName: 'HasLyrics', trackName: 'Test', provider: 'ollama', promptVersion: PROMPT_VERSION });
+    const fileName = translationCacheFileName({ artistName: 'HasLyrics', trackName: 'Test', provider: 'ollama' });
     const cached = await readCachedLyrics(tmpDir, fileName);
     expect(cached.frontmatter.verified).toBe(true);
     expect(cached.frontmatter.containsFullLyrics).toBe(true);
+  });
+});
+
+describe('持久快取版本與清除邊界', () => {
+  it('不同 prompt hash、模型與 fallback 策略不會共用翻譯', () => {
+    const track = { artistName: 'Fixture', trackName: 'Song', provider: 'gemini' };
+    expect(cacheFileName({ ...track, promptVersion: 'abc123' })).not.toBe(cacheFileName({ ...track, promptVersion: 'def456' }));
+    expect(PROMPT_VERSION).toMatch(/^[a-f0-9]{16}$/);
+    const key = translationCacheFileName(track);
+    process.env.GEMINI_MODEL = 'fixture-model-changed';
+    expect(translationCacheFileName(track)).not.toBe(key);
+    const modelKey = translationCacheFileName(track);
+    process.env.OLLAMA_FALLBACK_MODEL = 'fixture-fallback';
+    expect(translationCacheFileName(track)).not.toBe(modelKey);
+  });
+
+  it('清除單曲包含原文與各版本，但保留名稱相近的歌', async () => {
+    const track = { artistName: 'Fixture', trackName: 'Song' };
+    const names = [
+      cacheFileName({ ...track, provider: 'raw', promptVersion: 0 }),
+      translationCacheFileName({ ...track, provider: 'gemini' }),
+      translationCacheFileName({ ...track, trackName: 'Song Live', provider: 'gemini' })
+    ];
+    for (const file of names) await writeCachedLyrics(tmpDir, file, { frontmatter: {}, body: 'fixture' });
+    expect(await clearCachedTrack(tmpDir, track)).toBe(2);
+    expect(await fs.readdir(tmpDir)).toEqual([names[2]]);
+    expect(await clearCachedTrack(path.join(tmpDir, 'absent'), track)).toBe(0);
+  });
+
+  it('拒絕不明儲存模式及直接傳入的跨目錄檔名', async () => {
+    process.env.LYRICS_CACHE_BACKEND = 'typo';
+    await expect(readCachedLyrics(tmpDir, 'fixture.md')).rejects.toThrow('LYRICS_CACHE_BACKEND');
+    process.env.LYRICS_CACHE_BACKEND = 'local';
+    await expect(writeCachedLyrics(tmpDir, '../escape.md', { frontmatter: {}, body: 'fixture' })).rejects.toThrow('檔名');
   });
 });
 
