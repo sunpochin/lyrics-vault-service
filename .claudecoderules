@@ -1,3 +1,9 @@
-# Claude Code Instructions
-- All modifications must strictly follow the global coding principles, SOLID patterns, and React architecture guidelines defined in [HANDOFF.md](file:///Users/pac/codes/interview/workspace/HANDOFF.md) and [agent-handoff.md](file:///Users/pac/codes/interview/workspace/docs/agent-handoff.md).
-- Keep component states colocated locally to avoid top-level tree re-renders.
+<!--
+檔案用途：相容舊工具的規則入口，移除失效機器路徑。
+所在層：.。
+主要關聯：AGENTS.md。
+-->
+
+# Rule Redirect
+
+Read [AGENTS.md](AGENTS.md) at this repository root; it is the canonical project rulebook.

@@ -8,6 +8,11 @@
     "start": "tsx server.js",
     "dev": "node --watch server.js",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "harness:check": "node scripts/check-harness.mjs",
+    "harness:test": "vitest run tests/harness",
+    "harness:staged": "node scripts/check-staged.mjs",
+    "harness:tracked": "node scripts/check-staged.mjs --tracked",
     "demo:verify": "node scripts/demo-verify.js",
     "auth:spotify": "node scripts/capture-spotify-sp-dc.js"
   },

@@ -1,0 +1,112 @@
+{
+  "sourceRepository": "family-care-ops/jia-jian-log",
+  "sourceCommit": "3e830e2ef270d0feb2adeaa8d48203154bf00af8",
+  "importedOn": "2026-11-02",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sourceSha256": "7a54138745b8a2197e1205dba21707f6c5f84685c8660fb7416b4ad6a526f908",
+      "mode": "adapted"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sourceSha256": "5252d2d9a9fd5555308e7050ea74c52140c3b38e65059e074a702cfab6c33d59",
+      "mode": "adapted"
+    },
+    {
+      "path": "GEMINI.md",
+      "sourceSha256": "9157dee1be9ad94ceb43aa3ce3e353c279b0bd48d93ef04f37dfc253b56afbd1",
+      "mode": "adapted"
+    },
+    {
+      "path": ".agents/AGENTS.md",
+      "sourceSha256": "5ab8aaa383deef11189118f1a4e445091327d836fcd7126b87cb5bf3cae2dcf4",
+      "mode": "adapted"
+    },
+    {
+      "path": ".agents/rules/task-completion-report.md",
+      "sourceSha256": "b91ff470900b0e86677a03fc9ae7e7377a992f931811f3e255785ccf2b293c11",
+      "mode": "adapted"
+    },
+    {
+      "path": ".cursor/rules/project.mdc",
+      "sourceSha256": "43ba5b3d707b553ae00885a4b81292b41b24c16a3abcd41127a60c73b668344f",
+      "mode": "adapted"
+    },
+    {
+      "path": ".github/copilot-instructions.md",
+      "sourceSha256": "7a8e86742b781b9443fbe8b731c3e27761018f55e6246e7040950ed3281cc965",
+      "mode": "adapted"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "sourceSha256": "961efb67e6cc9013530c4e47005c105ee0a35a3e606bb0f02f435b78e85f714d",
+      "mode": "adapted"
+    },
+    {
+      "path": ".githooks/pre-commit",
+      "sourceSha256": "973bb9a7820a0546a36637b53e5f70c9c20558aab53cf3bea026f8b837e23970",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/git-workflow.md",
+      "sourceSha256": "1ae305afa9ac7683c4a00be2e6d4e3a85a1cc3e0e9a76d178961b0d4be284ef5",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/review-governance.md",
+      "sourceSha256": "23be48d6007281fa801c8ced5071e49ec8bc8a956e07b9233067d74da9923d37",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/local-tools.md",
+      "sourceSha256": "fdadb10b56c825e5f15488ca629adb8bfffd60f3a018e0fe82f09e1b588d8c68",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/issue-driven-workflow.md",
+      "sourceSha256": "f97ad5eda6bf011cb49db87259bdd02f9a3e570c53940b591bad0a5114335442",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/agents/skill-security.md",
+      "sourceSha256": "0461ad22a7622b0058ea06819495ca932397ef0040b36dfb056939aceb219bf8",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/ai/model-routing.md",
+      "sourceSha256": "4f650aacfecdeac83e10d87eda733ad50ef716db044ac049759b458adbb1493a",
+      "mode": "adapted"
+    },
+    {
+      "path": "docs/AGENT_MAP.md",
+      "sourceSha256": "7483b6e352c271ed10bcd1cc8fd8db90964c3107b0157e4df736b6658cdd209c",
+      "mode": "adapted"
+    },
+    {
+      "path": "skills/prime-directive/SKILL.md",
+      "sourceSha256": "0dbdb0541621684b0075a438dddb290916af7255369e64dfd7206da3bfa87bd1",
+      "mode": "adapted"
+    },
+    {
+      "path": "skills/repo-onboarding/SKILL.md",
+      "sourceSha256": "e39a576885b7734ceec8a8c48a4809c1ed7113f557aa6fbd20bb9cc7de662eec",
+      "mode": "adapted"
+    },
+    {
+      "path": "skills/eli5-teacher/SKILL.md",
+      "sourceSha256": "a9af36e124dabafd3b82689afd7f5f267435bd24387af82d3a3ade6544e3b676",
+      "mode": "copied"
+    },
+    {
+      "path": "skills/frontend-review/SKILL.md",
+      "sourceSha256": "910c5c5558c82f5c9d0267737b22c7794c144422e1cf74b05187b0af6c7dfbea",
+      "mode": "adapted"
+    },
+    {
+      "path": ".github/workflows/review-thread-gate.yml",
+      "sourceSha256": "3a427947404a74be4cd63db3d13d2bc1df7967e1d84c2bef2957846710172c16",
+      "mode": "adapted"
+    }
+  ]
+}

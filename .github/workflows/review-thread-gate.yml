@@ -1,0 +1,56 @@
+# 檔案用途：保留來源的未結案審查閘門，裁掉自動結案與專案帳號。
+# 所在層：.github/workflows；不 checkout 或執行 PR 程式，僅以唯讀權限查詢。
+# 主要關聯：docs/agents/review-governance.md、AGENTS.md。
+name: review-thread-gate
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to recheck after resolving threads
+        required: true
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  # 為什麼保留事件類型：push 與 review 不應互相取消，留下過期的綠燈。
+  group: review-threads-${{ github.event.pull_request.number || inputs.pr || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+jobs:
+  unresolved-threads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0，沿用來源鎖定版本
+        env:
+          INPUT_PR: ${{ inputs.pr }}
+        with:
+          script: |
+            const number = context.payload.pull_request?.number ?? Number(process.env.INPUT_PR);
+            if (!Number.isSafeInteger(number) || number < 1) throw new Error('Invalid PR number');
+            let cursor = null;
+            const unresolved = [];
+            do {
+              // 為什麼分頁：超過一百條意見時也必須檢查，不可讓後面的 thread 被漏掉。
+              const result = await github.graphql(`query($owner:String!,$repo:String!,$number:Int!,$cursor:String){
+                repository(owner:$owner,name:$repo){pullRequest(number:$number){
+                  headRefOid reviewThreads(first:100,after:$cursor){
+                    nodes{id isResolved path} pageInfo{hasNextPage endCursor}
+                  }
+                }}
+              }`, { owner: context.repo.owner, repo: context.repo.repo, number, cursor });
+              const pr = result.repository?.pullRequest;
+              if (!pr) throw new Error('PR not found');
+              core.info(`Checking PR #${number} head ${pr.headRefOid}`);
+              if (context.payload.pull_request && pr.headRefOid !== context.payload.pull_request.head.sha) {
+                throw new Error('PR head changed; rerun checks for the latest head');
+              }
+              unresolved.push(...pr.reviewThreads.nodes.filter(thread => !thread.isResolved));
+              cursor = pr.reviewThreads.pageInfo.hasNextPage ? pr.reviewThreads.pageInfo.endCursor : null;
+            } while (cursor);
+            // 為什麼不自動 resolve：檔案改過或 thread 過期都不能證明問題已正確處理。
+            if (unresolved.length) core.setFailed(`${unresolved.length} unresolved review thread(s).`);
+            else core.info('No unresolved review threads at this checkpoint; independent review is still required.');

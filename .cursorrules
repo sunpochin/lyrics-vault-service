@@ -1,3 +1,9 @@
-# Supreme Rules / 最高法則
-- All LLM agents MUST strictly follow the global coding principles, SOLID patterns, and React architecture guidelines defined in [HANDOFF.md](file:///Users/pac/codes/interview/workspace/HANDOFF.md) and [agent-handoff.md](file:///Users/pac/codes/interview/workspace/docs/agent-handoff.md).
-- Any newly generated code must prefer SOLID and state colocation best practices (React components should keep states local unless strictly required to be lifted up to prevent unnecessary tree re-renders).
+<!--
+檔案用途：相容舊工具的規則入口，移除失效機器路徑。
+所在層：.。
+主要關聯：AGENTS.md。
+-->
+
+# Rule Redirect
+
+Read [AGENTS.md](AGENTS.md) at this repository root; it is the canonical project rulebook.

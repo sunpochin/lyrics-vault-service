@@ -1,4 +1,18 @@
+<!--
+檔案用途：歌詞服務架構決策與 AI 協作文件索引。
+所在層：repository root；依任務面向導向相關設計與工作流程。
+主要關聯：AGENTS.md、docs/AGENT_MAP.md、docs/agents/harness-port.md。
+-->
+
 # TECHNICAL.md - Lyrics Vault Service 技術文件
+
+## 按需閱讀索引
+
+- AI 憲法：[AGENTS.md](AGENTS.md)；入口與測試：[AGENT_MAP](docs/AGENT_MAP.md)。
+- Harness 設計、來源證據與排除方案：[移植紀錄](docs/agents/harness-port.md)。
+- Git／PR：[git-workflow](docs/agents/git-workflow.md)；review：[review-governance](docs/agents/review-governance.md)。
+- 指令、hook 與已知基線：[local-tools](docs/agents/local-tools.md)；跨 session：[Issue 與交接](docs/agents/issue-driven-workflow.md)。
+- 模型與風險：[model-routing](docs/ai/model-routing.md)；外部技能：[skill-security](docs/agents/skill-security.md)。
 
 ## 1. 架構概述 (Architecture Overview)
 
@@ -31,7 +45,7 @@
 ---
 
 ## 3. 測試與驗證 (Verification)
-- 單元測試與契約測試涵蓋 31 項測試（`vitest run` 100% 通過）。
+- 移植前單元與契約測試涵蓋 31 項（2026-11-02 `npm test` 通過）；新增 harness 隔離檢查由 `npm run harness:test` 執行。型別檢查與 demo 仍有既有失敗，見本機工具文件，不代表全服務已驗收。
 - 測試套件包含：
   - `tests/contract/lyrics-handoff.test.js`：驗證 JSON Schema 契約防護與漂移檢查。
   - `tests/lyrics-source.test.js`：LRCLIB 抓取、LRC 保留與降級。
