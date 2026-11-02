@@ -1,3 +1,9 @@
-# Supreme Rules / 最高法則
-- All LLM agents MUST strictly follow the global coding principles, SOLID patterns, and React architecture guidelines defined in [HANDOFF.md](file:///Users/pac/codes/interview/workspace/HANDOFF.md) and [agent-handoff.md](file:///Users/pac/codes/interview/workspace/docs/agent-handoff.md).
-- Any newly generated code must prefer SOLID and state colocation best practices (React components should keep states local unless strictly required to be lifted up to prevent unnecessary tree re-renders).
+<!--
+檔案用途：Copilot 的薄轉接入口。
+所在層：.github。
+主要關聯：AGENTS.md。
+-->
+
+# Copilot Adapter
+
+先讀 [AGENTS.md](../AGENTS.md)，按需閱讀其中的文件索引；沿用本專案的 npm／Vitest 與資料安全邊界。
