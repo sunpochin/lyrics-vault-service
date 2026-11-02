@@ -7,10 +7,11 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
   pull_request_review:
     types: [submitted, edited, dismissed]
+  # 為什麼手動入口只作診斷：它的結果掛在選定 ref，不能更新原 PR run 的檢查。
   workflow_dispatch:
     inputs:
       pr:
-        description: Pull request number to recheck after resolving threads
+        description: PR number for diagnosis; rerun original PR workflow to refresh its check
         required: true
 permissions:
   contents: read
